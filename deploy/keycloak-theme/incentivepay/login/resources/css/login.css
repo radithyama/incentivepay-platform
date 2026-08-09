@@ -38,11 +38,24 @@ body {
   margin-bottom: 24px;
 }
 #kc-header-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   color: var(--ip-text);
   font-size: 1.6rem;
   font-weight: 700;
   text-align: center;
   letter-spacing: -0.01em;
+}
+#kc-header-wrapper::before {
+  content: "";
+  display: inline-block;
+  width: 34px;
+  height: 34px;
+  background-image: url("../img/logo.svg");
+  background-size: contain;
+  background-repeat: no-repeat;
 }
 #kc-header-wrapper .ip-brand-accent {
   color: var(--ip-primary);
