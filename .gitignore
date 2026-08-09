@@ -5,3 +5,4 @@ Thumbs.db
 !.env.example
 !.env.prod.example
 .claude/settings.local.json
+.deploy-keys/
