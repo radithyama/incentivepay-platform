@@ -1,0 +1,134 @@
+/*
+ * IncentivePay login theme - CSS-only override of Keycloak's classic "keycloak"
+ * theme (parent=keycloak in theme.properties). Targets the real DOM structure
+ * that theme renders (.login-pf-page / .card-pf / .pf-c-form-control / etc.),
+ * not a from-scratch template - keeps MFA/password-reset/etc. all working
+ * for free since only appearance changes, not behavior.
+ */
+
+:root {
+  --ip-primary: #4338ca;
+  --ip-primary-hover: #3730a3;
+  --ip-bg: #f8fafc;
+  --ip-surface: #ffffff;
+  --ip-border: #e2e8f0;
+  --ip-text: #0f172a;
+  --ip-text-muted: #64748b;
+  --ip-danger: #dc2626;
+  --ip-radius: 12px;
+}
+
+body {
+  background: var(--ip-bg) !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}
+
+.login-pf-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  background: var(--ip-bg);
+}
+
+/* Realm displayNameHtml renders here - see realm-export.json "displayNameHtml" */
+#kc-header {
+  margin-bottom: 24px;
+}
+#kc-header-wrapper {
+  color: var(--ip-text);
+  font-size: 1.6rem;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: -0.01em;
+}
+#kc-header-wrapper .ip-brand-accent {
+  color: var(--ip-primary);
+}
+
+.card-pf {
+  background: var(--ip-surface);
+  border: 1px solid var(--ip-border);
+  border-radius: var(--ip-radius);
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
+  padding: 40px;
+  max-width: 400px;
+  width: 100%;
+}
+
+.login-pf-header {
+  border: none;
+  padding: 0 0 20px 0;
+  margin: 0;
+}
+#kc-page-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--ip-text);
+  text-align: center;
+  margin: 0;
+}
+
+label.pf-c-form__label-text,
+.control-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ip-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.pf-c-form-control,
+input.form-control {
+  border: 1px solid var(--ip-border) !important;
+  border-radius: 8px !important;
+  padding: 10px 12px !important;
+  font-size: 0.95rem !important;
+  box-shadow: none !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.pf-c-form-control:focus,
+input.form-control:focus {
+  border-color: var(--ip-primary) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(67, 56, 202, 0.15) !important;
+}
+
+#kc-form-buttons .pf-c-button.pf-m-primary,
+#kc-form-buttons input[type="submit"] {
+  background: var(--ip-primary) !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  padding: 12px !important;
+  font-size: 0.95rem !important;
+  transition: background 0.15s ease;
+}
+#kc-form-buttons .pf-c-button.pf-m-primary:hover,
+#kc-form-buttons input[type="submit"]:hover {
+  background: var(--ip-primary-hover) !important;
+}
+
+a,
+#kc-registration a,
+#kc-info-wrapper a {
+  color: var(--ip-primary);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+.alert-error,
+.pf-c-alert.pf-m-danger {
+  border-radius: 8px;
+  border-color: var(--ip-danger);
+}
+
+#kc-content-wrapper .checkbox label,
+.login-pf-settings {
+  font-size: 0.85rem;
+  color: var(--ip-text-muted);
+}

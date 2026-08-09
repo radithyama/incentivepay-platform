@@ -4,6 +4,8 @@
   "sslRequired": "none",
   "registrationAllowed": false,
   "accessTokenLifespan": 3600,
+  "loginTheme": "incentivepay",
+  "displayNameHtml": "Incentive<span class=\"ip-brand-accent\">Pay</span>",
   "roles": {
     "realm": [
       { "name": "incentive-admin", "description": "Manages incentive rules and participants" },
@@ -23,9 +25,27 @@
       "serviceAccountsEnabled": false,
       "redirectUris": ["http://localhost:5173/*", "http://localhost:8080/*", "https://incentivepay.radithyama.app/*"],
       "webOrigins": ["http://localhost:5173", "https://incentivepay.radithyama.app"]
+    },
+    {
+      "clientId": "incentivepay-admin-service",
+      "enabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "secret": "CHANGE-ME-generate-with-openssl-rand-hex-32-before-any-real-deployment"
     }
   ],
   "users": [
+    {
+      "username": "service-account-incentivepay-admin-service",
+      "enabled": true,
+      "serviceAccountClientId": "incentivepay-admin-service",
+      "clientRoles": {
+        "realm-management": ["manage-users"]
+      }
+    },
     {
       "username": "admin-demo",
       "enabled": true,

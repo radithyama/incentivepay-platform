@@ -70,6 +70,7 @@ services:
       - "8081:8080"
     volumes:
       - ./infra/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+      - ./deploy/keycloak-theme/incentivepay:/opt/keycloak/themes/incentivepay:ro
 
   incentive-api:
     build:
