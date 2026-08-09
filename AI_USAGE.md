@@ -86,6 +86,18 @@ underlying "declarative role mapping doesn't survive `--import-realm` reliably" 
 future fresh deployment - noted in `BACKLOG.md` rather than chased further, since the live fix generalizes
 (any fresh deploy needing this client just needs the same one-time role assignment).
 
+That same 502 handler immediately earned its keep: the very next thing tested end-to-end (register → approve
+→ log in as the new user, through the actual UI, not just curl) failed again, cleanly, with the new 502
+instead of a confusing 401 - `manage-users` turned out to cover creating/enabling users and assigning role
+*mappings*, but not `GET /admin/realms/{realm}/roles/{name}` (reading a role's own representation, which
+`KeycloakAdminClient.approveUser` needs before it can assign that role). That's a `view-realm` permission,
+not a `manage-users` one - not something you'd necessarily guess from the name, and only found by testing the
+actual approve button in a browser rather than stopping at "the service account can authenticate." Also
+caught while testing: the pending-approvals list showed every request as "no role requested," because
+Keycloak's `GET /admin/realms/{realm}/users` list endpoint silently omits custom `attributes` (where the
+requested role lives) unless you pass `briefRepresentation=false` - undocumented in the obvious place, found
+by comparing the single-user GET (which does return attributes) against the list endpoint's response.
+
 ## Mid-build pivot: monorepo to 5 repos
 
 **Prompt:** "push to git for each service and frontend, create their repo for every one of them. And put

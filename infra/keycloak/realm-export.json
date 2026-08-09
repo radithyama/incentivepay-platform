@@ -43,7 +43,7 @@
       "enabled": true,
       "serviceAccountClientId": "incentivepay-admin-service",
       "clientRoles": {
-        "realm-management": ["manage-users"]
+        "realm-management": ["manage-users", "view-realm"]
       }
     },
     {

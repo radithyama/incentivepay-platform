@@ -77,8 +77,10 @@ user's request into `incentivepay-incentive-api`, `incentivepay-ledger-service`,
 - [x] CSS-only Keycloak login theme (`deploy/keycloak-theme`), reskinning the hosted login page rather than
       replacing the OAuth2 redirect flow
 - [x] Self-registration (`POST /v1/auth/register`, public) + admin approval queue (`/v1/admin/pending-registrations`),
-      backed by a new `incentivepay-admin-service` Keycloak service account (realm-management `manage-users`
-      role only)
+      backed by a new `incentivepay-admin-service` Keycloak service account (realm-management `manage-users` +
+      `view-realm` - the second one only found by testing the approve flow live: `manage-users` covers
+      creating/enabling users and assigning role mappings, but reading a realm role's representation
+      (`GET /roles/{name}`, needed to resolve the role before assigning it) needs `view-realm` separately)
 - [x] Frontend: Tailwind CSS, sidebar shell, unauthenticated landing page (login/register), Pending Approvals
       admin panel, restyled the 4 existing panels
 - [x] Keycloak data now persisted (`keycloak-data` volume) - previously every config-driven container
