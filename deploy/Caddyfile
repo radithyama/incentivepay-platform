@@ -1,5 +1,24 @@
 incentivepay.radithyama.app {
 	reverse_proxy frontend:80
+
+	header {
+		# 1 year HSTS, including subdomains - all four are HTTPS-only via Caddy's
+		# automatic TLS, so this is safe to turn on unconditionally.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Frame-Options "DENY"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# script-src/style-src have no 'unsafe-inline' - the built SPA has zero
+		# inline <script>/<style> (verified: Vite emits only external
+		# module/asset references, and silent-check-sso.html's postMessage
+		# call was moved to an external .js file specifically so this policy
+		# wouldn't silently break silent Keycloak SSO). connect-src/frame-src
+		# name the other three subdomains this app actually talks to.
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self' https://api.incentivepay.radithyama.app https://ledger.incentivepay.radithyama.app https://auth.incentivepay.radithyama.app; frame-src https://auth.incentivepay.radithyama.app; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		# Don't hand out software identity for free - nginx's own version is
+		# also suppressed at the source (nginx.conf, server_tokens off).
+		-Server
+	}
 }
 
 www.incentivepay.radithyama.app {
@@ -8,12 +27,35 @@ www.incentivepay.radithyama.app {
 
 api.incentivepay.radithyama.app {
 	reverse_proxy incentive-api:8080
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		# JSON API, not an HTML-rendering context - lock it down completely
+		# rather than trying to write a policy for content it never serves.
+		# X-Frame-Options/X-Content-Type-Options already come from Spring
+		# Security's own defaults; left alone rather than duplicated here.
+		Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
+		-Server
+	}
 }
 
 ledger.incentivepay.radithyama.app {
 	reverse_proxy ledger-service:8082
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
+		-Server
+	}
 }
 
 auth.incentivepay.radithyama.app {
 	reverse_proxy keycloak:8080
+
+	# Keycloak already sends its own HSTS/CSP/X-Frame-Options/X-Content-Type-Options
+	# for the login theme - deliberately not touching those. Only stripping the
+	# proxy-level Server header for consistency with the other three subdomains.
+	header {
+		-Server
+	}
 }

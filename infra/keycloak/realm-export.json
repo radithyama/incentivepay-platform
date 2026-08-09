@@ -4,6 +4,13 @@
   "sslRequired": "none",
   "registrationAllowed": false,
   "accessTokenLifespan": 3600,
+  "bruteForceProtected": true,
+  "failureFactor": 10,
+  "maxFailureWaitSeconds": 900,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "minimumQuickLoginWaitSeconds": 60,
+  "maxDeltaTimeSeconds": 43200,
   "loginTheme": "incentivepay",
   "displayNameHtml": "Incentive<span class=\"ip-brand-accent\">Pay</span>",
   "roles": {
