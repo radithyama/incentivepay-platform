@@ -8,6 +8,11 @@ commissions - role-gated, HMAC-signed, and event-driven, the same way a real pay
 be. Built against [`PRD-IncentivePay-Portfolio-App.md`](PRD-IncentivePay-Portfolio-App.md) as a portfolio
 piece for a Payment Platform / Incentive Platform engineering role.
 
+**Live:** [incentivepay.radithyama.app](https://incentivepay.radithyama.app) - log in as `approver-demo` /
+`incentivepay-demo` (or any of the four demo users, see "Keycloak setup" below) to try the approvals queue.
+Deployed on Google Cloud Compute Engine (`e2-medium`) behind Caddy for automatic HTTPS; see
+[`docker-compose.prod.yml`](docker-compose.prod.yml) and [`deploy/`](deploy/).
+
 **What it demonstrates, concretely:**
 - Rules-based business logic (Strategy pattern for FLAT/PERCENTAGE/TIERED calculation), not just CRUD
 - A real approval/authorization workflow with RBAC (four Keycloak roles behave differently, and it's tested)
@@ -49,18 +54,23 @@ Kafka-compatible messaging is via Redpanda.
 
 ## Status (honest)
 
-This was built in one sitting with Claude Code, **without Docker installed in the build environment** - so
-everything is written and unit/slice-tested per-repo, but the full docker-compose stack across all 5 repos
-has not actually been run end-to-end yet. See each repo's `AI_USAGE.md`/README for specifics, and
-[`BACKLOG.md`](BACKLOG.md) here for the itemized list of what's done vs. what still needs a real Docker run
-(Testcontainers integration tests, the k6 load test, a first end-to-end docker-compose pass).
+This was built in one sitting with Claude Code, initially **without Docker installed in the build
+environment** - so the core services were written and unit/slice-tested per-repo before ever running as a
+whole. The full stack has since been deployed end-to-end to a real GCP Compute Engine VM (see "Live" above),
+which surfaced two real bugs that only show up under actual deployment (a Keycloak required-action quirk and
+a redirect-URI mismatch) - see `AI_USAGE.md` for the full account of both, including how they were caught and
+fixed.
+
+Not yet done: Testcontainers integration tests and a k6 load test against the bulk-import endpoint - both
+possible now that a real Postgres/Kafka/Keycloak stack exists, just not written yet. See
+[`BACKLOG.md`](BACKLOG.md) for the itemized list.
 
 Observability (OpenTelemetry/Jaeger/Grafana) is not implemented - cut per the PRD's explicit priority order
-(Section 11). `infra/k8s/` manifests are written as code but not deployed to a live cluster - per the PRD's
-non-goals (Section 3).
+(Section 11). `infra/k8s/` manifests are written as code but not deployed to a live cluster (the live
+deployment above uses plain Compute Engine + Docker Compose, not Kubernetes) - per the PRD's non-goals
+(Section 3).
 
-Approvals-queue screenshot: not yet captured, since that needs the stack actually running. TODO once Docker
-is available.
+Approvals-queue screenshot: not yet captured. TODO.
 
 ## Quickstart
 
@@ -92,6 +102,28 @@ services can validate tokens, and Flyway needs each Postgres instance to be read
 
 Each service repo also has its own standalone `docker-compose.yml` if you just want to run one service in
 isolation (e.g. to work on `incentive-api` alone) - see that repo's README.
+
+## Live deployment (GCP Compute Engine)
+
+The instance running at [incentivepay.radithyama.app](https://incentivepay.radithyama.app):
+
+- Single `e2-medium` Compute Engine VM (Ubuntu 22.04), static external IP, `asia-southeast2-a`
+- [`deploy/gce-startup.sh`](deploy/gce-startup.sh) as the instance startup script: installs Docker, adds a
+  4GB swapfile (this stack is memory-hungry for a 4GB-RAM instance size), clones all 5 repos, and brings the
+  stack up via [`docker-compose.prod.yml`](docker-compose.prod.yml) - a production overlay on top of the dev
+  compose file (`restart: unless-stopped`, DB/Kafka/notification-service never exposed publicly, real
+  generated secrets instead of the dev defaults)
+- [`deploy/Caddyfile`](deploy/Caddyfile): Caddy reverse-proxies each subdomain to its container over the
+  internal Docker network and handles automatic HTTPS (Let's Encrypt) - it's the only thing with ports 80/443
+  published to the internet; every app service's own port is rebound to `127.0.0.1`
+- DNS is on Vercel (`radithyama.app`'s registrar/DNS host), pointed at the VM's static IP via one apex A
+  record (`incentivepay`) and one wildcard (`*.incentivepay`) covering `api.`, `ledger.`, `auth.`, and `www.`
+- Secrets (`HMAC_SECRET`, `KEYCLOAK_ADMIN_PASSWORD`) are generated once and passed as GCE instance metadata,
+  written to a gitignored `.env.prod` on first boot - never committed; see `.env.prod.example`
+
+This is intentionally a single small VM, not Kubernetes - `infra/k8s/` exists as written-but-undeployed code
+per the PRD's stated scope (Section 3), and this deployment predates any decision to actually stand up a
+cluster for it.
 
 ## Keycloak setup
 

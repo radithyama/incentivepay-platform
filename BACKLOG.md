@@ -31,10 +31,29 @@ conventional commits. Checked items are done; unchecked items are the honest sta
 - [x] `k8s/` manifests (written as code; not deployed - Section 3 non-goal)
 - [x] README, `AI_USAGE.md`, LICENSE, CI badge
 - [x] GitHub Actions CI (backend `mvn verify`, frontend `npm run build`)
-- [ ] k6 load test on the bulk import endpoint - **not run**: needs Docker (Postgres/Kafka/Keycloak), which
-      isn't installed in this environment yet. Script to write once Docker is available locally.
+- [ ] k6 load test on the bulk import endpoint - not yet written. Now possible against the live deployment
+      (see below) or a local stack; just hasn't been done yet.
 - [ ] Testcontainers integration tests (real Postgres/Kafka/Keycloak) - written as unit/slice tests instead
-      for this session since Docker isn't installed; see "Known simplifications" in README.
+      for the original build session since Docker wasn't installed; still not backfilled.
+
+## Deployed to GCP Compute Engine
+
+- [x] `e2-medium` VM, static IP, `asia-southeast2-a`, provisioned via `gcloud` - Compute Engine API enabled,
+      billing confirmed on the target project first
+- [x] `deploy/gce-startup.sh` - idempotent instance startup script: Docker install, 4GB swapfile, clone all 5
+      repos, bring up `docker-compose.prod.yml`
+- [x] `docker-compose.prod.yml` - production overlay (`restart: unless-stopped`, secrets via env vars, ports
+      rebound to `127.0.0.1`) using the Compose Spec `!override` merge tag, deliberately - Compose's default
+      merge behavior *concatenates* list fields like `ports` across files rather than replacing them, which
+      would have left Postgres/Kafka reachable from the internet even with a "127.0.0.1-only" override
+- [x] Caddy reverse proxy (`deploy/Caddyfile`) for automatic HTTPS across all 5 subdomains on
+      `radithyama.app` (user's existing domain, DNS on Vercel) - `www` redirects to the apex
+- [x] Two bugs only visible once actually deployed with a real domain, found and fixed live via the Keycloak
+      admin API, then fixed at the source: demo users missing `firstName`/`lastName` (Keycloak 25's
+      `VERIFY_PROFILE` required action), and the OAuth client's `redirectUris` only allowing `localhost`. Full
+      account in `AI_USAGE.md`.
+- [x] Temporary firewall rule (opened for phase-1 direct-IP verification before DNS was live) removed once
+      Caddy + HTTPS were confirmed working
 
 ## Split into 5 repos
 
