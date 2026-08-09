@@ -49,6 +49,43 @@ Both fixes shipped in the same commit, both were live-patched via the Keycloak a
 deployment wasn't broken while waiting on `git push` + a redeploy), then corrected at the source and pushed
 so a fresh `docker-compose up` elsewhere doesn't reintroduce either bug.
 
+## UI overhaul + self-registration: a Keycloak realm-import quirk that only showed up on redeploy
+
+**Prompt:** "can you improve the UI of overall apps? perhaps add login screen to replace the keycloak login
+interface and registration feature that would be approved by the keycloak or admin... Ask any questions for
+clarification before start."
+
+Four clarifying questions got asked and answered before writing code: reskin Keycloak's own login page vs. a
+fully custom embedded form (chose reskin - keeps the standard OAuth2 redirect flow, MFA/reset-password stay
+free); a simple Keycloak-native registration vs. a custom in-app approval queue (chose custom - real feature
+work: a Keycloak service account, new endpoints, a new admin panel); light UI polish vs. a fuller redesign
+(chose fuller); and auto-deploy-on-push vs. a manual gate for the eventual CD pipeline (chose auto-deploy).
+Feature work happened first, CD pipeline last, specifically so an unfinished CD setup couldn't push
+half-built intermediate states to the live site while this was in progress.
+
+**What went wrong, only visible after a real redeploy:** the new `incentivepay-admin-service` service account
+client needs the `realm-management` client's `manage-users` role to call Keycloak's Admin API (used for
+registration/approval). That role mapping is declared directly in `realm-export.json` (a `clientRoles` entry
+under the service-account user), which is the documented, standard way to do this. It worked the first time
+that client was created (via a direct Admin API call, not import). But this repo's whole Keycloak dataset
+gets wiped and re-imported fresh from `realm-export.json` whenever the `keycloak` container is recreated with
+a changed config (a separate, related gap - Keycloak's `start-dev` H2 database had no persistent volume
+before this pass, fixed in the same deploy). On that fresh `--import-realm` run, the client and the
+service-account *user* both got created correctly, but the client-role mapping between them silently didn't
+apply - the resulting token had no `realm-management` roles at all, and every Admin API call failed.
+
+The failure mode was confusing precisely because of a second, smaller bug: `KeycloakAdminClient` let that
+`RestClientResponseException` propagate uncaught, and it surfaced to the browser as a generic 401 with a
+`WWW-Authenticate: Bearer` header - which looks exactly like "your login token is wrong," not "a downstream
+service call failed." Diagnosed by decoding the service account's own JWT (curl + a one-off Python script)
+and inspecting its `resource_access` claim directly, rather than trusting the client-facing error. Fixed two
+things: re-applied the role mapping via the Admin API (the pragmatic live fix, same pattern as earlier
+live-patches), and added a `RestClientResponseException` handler in `GlobalExceptionHandler` that returns a
+clear 502 instead of letting the exception fall through to Spring Security's OAuth2 entry point. The
+underlying "declarative role mapping doesn't survive `--import-realm` reliably" issue is still there for any
+future fresh deployment - noted in `BACKLOG.md` rather than chased further, since the live fix generalizes
+(any fresh deploy needing this client just needs the same one-time role assignment).
+
 ## Mid-build pivot: monorepo to 5 repos
 
 **Prompt:** "push to git for each service and frontend, create their repo for every one of them. And put

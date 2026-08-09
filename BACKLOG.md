@@ -72,6 +72,24 @@ user's request into `incentivepay-incentive-api`, `incentivepay-ledger-service`,
 - [x] Per-repo CI workflow (`mvn verify` for the 3 Java repos, `npm run build` for frontend, YAML validation
       for this repo)
 
+## UI overhaul, self-registration + approval, Keycloak login theme
+
+- [x] CSS-only Keycloak login theme (`deploy/keycloak-theme`), reskinning the hosted login page rather than
+      replacing the OAuth2 redirect flow
+- [x] Self-registration (`POST /v1/auth/register`, public) + admin approval queue (`/v1/admin/pending-registrations`),
+      backed by a new `incentivepay-admin-service` Keycloak service account (realm-management `manage-users`
+      role only)
+- [x] Frontend: Tailwind CSS, sidebar shell, unauthenticated landing page (login/register), Pending Approvals
+      admin panel, restyled the 4 existing panels
+- [x] Keycloak data now persisted (`keycloak-data` volume) - previously every config-driven container
+      recreation silently wiped all realm data, since `start-dev`'s embedded H2 lived in container-local storage
+- [ ] **Known gap, not yet resolved**: the service account's `manage-users` client-role mapping, declared in
+      `realm-export.json`, does not reliably survive a fresh `--import-realm` (confirmed once - the client and
+      its service-account user both import correctly, but the role mapping between them doesn't). Fixed live via
+      the Admin API on this deployment; a fresh deployment elsewhere would need the same one-time fix
+      (`AI_USAGE.md` has the full diagnosis). Worth a proper fix (a startup script step, or filing upstream)
+      before this is relied on unattended.
+
 ## Known cuts / simplifications (see README for the full explanation of each)
 
 - Frontend HMAC signing uses a build-time secret shipped to the browser - fine for a demo, not for
