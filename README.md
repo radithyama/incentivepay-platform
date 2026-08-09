@@ -9,9 +9,11 @@ be. Built against [`PRD-IncentivePay-Portfolio-App.md`](PRD-IncentivePay-Portfol
 piece for a Payment Platform / Incentive Platform engineering role.
 
 **Live:** [incentivepay.radithyama.app](https://incentivepay.radithyama.app) - log in as `approver-demo` /
-`incentivepay-demo` (or any of the four demo users, see "Keycloak setup" below) to try the approvals queue.
-Deployed on Google Cloud Compute Engine (`e2-medium`) behind Caddy for automatic HTTPS; see
-[`docker-compose.prod.yml`](docker-compose.prod.yml) and [`deploy/`](deploy/).
+`incentivepay-demo` (or any of the four demo users, see "Keycloak setup" below), or request a new account from
+the login screen (an `incentive-admin` has to approve it before it works - see "Self-registration" below).
+Deployed on Google Cloud Compute Engine (`e2-medium`) behind Caddy for automatic HTTPS, with a CD pipeline
+that redeploys on every push to `main`; see [`docker-compose.prod.yml`](docker-compose.prod.yml),
+[`deploy/`](deploy/), and "CD pipeline" below.
 
 **What it demonstrates, concretely:**
 - Rules-based business logic (Strategy pattern for FLAT/PERCENTAGE/TIERED calculation), not just CRUD
@@ -125,6 +127,28 @@ This is intentionally a single small VM, not Kubernetes - `infra/k8s/` exists as
 per the PRD's stated scope (Section 3), and this deployment predates any decision to actually stand up a
 cluster for it.
 
+## CD pipeline
+
+Every push to `main` in any of the 5 repos redeploys automatically, no manual step:
+
+1. That repo's own CI job runs (`mvn verify` or `npm run build`)
+2. On success, a `deploy` job SSHes into the VM as a **restricted `deploy` user** and runs
+   [`deploy/deploy.sh`](deploy/deploy.sh) with one argument (which service changed)
+3. `deploy.sh` `git pull`s just that service's repo and runs
+   `docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d --build <service>`
+   - Docker Compose only actually recreates the container if something meaningfully changed, so a
+     no-op-content push doesn't cause a restart
+   - Pushing to `incentivepay-platform` itself runs the same command without a service argument (rebuilds
+     the whole stack), since that's where `docker-compose.yml`/`Caddyfile`/`realm-export.json` live
+
+The `deploy` user's sudo access is scoped to exactly five whitelisted commands (`/etc/sudoers.d/deploy`) -
+`deploy.sh <incentive-api|ledger-service|notification-service|frontend|platform>` and nothing else, not even
+plain `sudo whoami`. A leaked deploy key can redeploy known-good code from GitHub; it can't run arbitrary
+commands as root. The SSH keypair is dedicated to this one purpose (not reused elsewhere) and stored as a
+GitHub Actions secret (`DEPLOY_SSH_KEY`) in each of the 5 repos, alongside a pinned host key
+(`DEPLOY_VM_HOST_KEY`) so the workflow verifies it's actually talking to the right VM rather than skipping
+host-key checking.
+
 ## Keycloak setup
 
 The realm `incentivepay` is imported automatically from `infra/keycloak/realm-export.json` on first
@@ -156,6 +180,26 @@ curl -s -X POST http://localhost:8081/realms/incentivepay/protocol/openid-connec
 Swap `username` for any of the four demo users to test the other roles. The one test worth running by hand:
 grab a `viewer-demo` token and `POST` to `/v1/disbursements/{id}/approve` - it should 403, not 200 (see
 `incentivepay-incentive-api`'s `DisbursementControllerAuthorizationTest` for the automated version).
+
+### Custom login theme
+
+The Keycloak login page you land on when you click "Log in" isn't the stock Keycloak look - it's a CSS-only
+theme (`deploy/keycloak-theme/incentivepay`, mounted read-only into the Keycloak container and set as the
+realm's `loginTheme`) that reskins Keycloak's own hosted page rather than replacing the login flow with a
+custom one. That was a deliberate tradeoff: a fully custom embedded login form would mean this app's frontend
+handling raw passwords directly (the OAuth2 "resource owner password credentials" grant, considered legacy in
+OAuth 2.1) and losing MFA/password-reset for free. The redirect-based flow keeps all of that working; only the
+CSS changed.
+
+### Self-registration + admin approval
+
+New users don't get instant access. `POST /v1/auth/register` (no auth required) creates a Keycloak user that
+is **disabled and has no role** - just a `requestedRole` attribute recording what they asked for. Nothing
+happens until an `incentive-admin` reviews it on the **Pending approvals** tab and either approves (assigns a
+role - not necessarily the one requested - and enables the account) or rejects (deletes it). This is backed
+by a dedicated Keycloak service account (`incentivepay-admin-service`, `incentive-api`'s
+`KeycloakAdminClient`) holding only the two `realm-management` client roles it actually needs
+(`manage-users`, `view-realm`) - not full admin access.
 
 ### Why `jwk-set-uri`, not `issuer-uri`
 

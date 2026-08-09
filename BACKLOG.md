@@ -102,6 +102,19 @@ user's request into `incentivepay-incentive-api`, `incentivepay-ledger-service`,
       the "requested role" ever shows up correctly in the approvals queue (the approve/reject flow itself
       works fine either way - this only affects the role the admin panel pre-selects).
 
+## CD pipeline
+
+- [x] Restricted `deploy` Linux user on the VM, sudo access scoped to exactly 5 whitelisted commands
+      (`deploy/deploy.sh <service>`, one sudoers line per service - not a wildcard) via `/etc/sudoers.d/deploy`
+- [x] Dedicated SSH keypair (not reused elsewhere), private key stored as a GitHub Actions secret
+      (`DEPLOY_SSH_KEY`) in all 5 repos, VM host key pinned (`DEPLOY_VM_HOST_KEY`) rather than skipping
+      host-key verification
+- [x] `deploy` job added to every repo's `ci.yml`, gated on the test/build job passing and on `main` -
+      verified for real (not just "the workflow succeeded"): confirmed the GitHub Actions run's own logs
+      show it actually SSHing in, pulling the new commit, and rebuilding, and separately confirmed the
+      restricted user genuinely can't run anything else (`sudo whoami`, argument injection, and an unlisted
+      service name were all tested and correctly rejected)
+
 ## Known cuts / simplifications (see README for the full explanation of each)
 
 - Frontend HMAC signing uses a build-time secret shipped to the browser - fine for a demo, not for
