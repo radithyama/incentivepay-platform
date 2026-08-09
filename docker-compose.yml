@@ -1,0 +1,142 @@
+# Full IncentivePay stack. Assumes all 5 repos are cloned as SIBLING
+# directories (see README "Quickstart"):
+#
+#   some-folder/
+#     incentivepay-platform/       <- you are here
+#     incentivepay-incentive-api/
+#     incentivepay-ledger-service/
+#     incentivepay-notification-service/
+#     incentivepay-frontend/
+
+version: "3.8"
+
+services:
+  postgres-incentive:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: incentive_api
+      POSTGRES_USER: incentive_api
+      POSTGRES_PASSWORD: incentive_api
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-incentive-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U incentive_api"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres-ledger:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ledger_service
+      POSTGRES_USER: ledger_service
+      POSTGRES_PASSWORD: ledger_service
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-ledger-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ledger_service"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.2.4
+    command:
+      - redpanda
+      - start
+      - --smp=1
+      - --overprovisioned
+      - --node-id=0
+      - --kafka-addr=PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr=PLAINTEXT://redpanda:9092
+    ports:
+      - "9092:9092"
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: "8081"
+      KC_HOSTNAME_STRICT_BACKCHANNEL: "false"
+      KC_HTTP_ENABLED: "true"
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./infra/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+
+  incentive-api:
+    build:
+      context: ../incentivepay-incentive-api
+    depends_on:
+      postgres-incentive:
+        condition: service_healthy
+      redpanda:
+        condition: service_started
+      keycloak:
+        condition: service_started
+    environment:
+      DB_URL: jdbc:postgresql://postgres-incentive:5432/incentive_api
+      DB_USER: incentive_api
+      DB_PASSWORD: incentive_api
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/incentivepay/protocol/openid-connect/certs
+      HMAC_SECRET: dev-only-shared-secret-change-me
+    ports:
+      - "8080:8080"
+
+  ledger-service:
+    build:
+      context: ../incentivepay-ledger-service
+    depends_on:
+      postgres-ledger:
+        condition: service_healthy
+      redpanda:
+        condition: service_started
+      keycloak:
+        condition: service_started
+    environment:
+      DB_URL: jdbc:postgresql://postgres-ledger:5432/ledger_service
+      DB_USER: ledger_service
+      DB_PASSWORD: ledger_service
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/incentivepay/protocol/openid-connect/certs
+    ports:
+      - "8082:8082"
+
+  notification-service:
+    build:
+      context: ../incentivepay-notification-service
+    depends_on:
+      redpanda:
+        condition: service_started
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+    ports:
+      - "8083:8083"
+
+  frontend:
+    build:
+      context: ../incentivepay-frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:8080
+        VITE_LEDGER_BASE_URL: http://localhost:8082
+        VITE_KEYCLOAK_URL: http://localhost:8081
+        VITE_KEYCLOAK_REALM: incentivepay
+        VITE_KEYCLOAK_CLIENT_ID: incentivepay-client
+        VITE_HMAC_SECRET: dev-only-shared-secret-change-me
+    depends_on:
+      - incentive-api
+      - ledger-service
+    ports:
+      - "5173:80"
+
+volumes:
+  postgres-incentive-data:
+  postgres-ledger-data:

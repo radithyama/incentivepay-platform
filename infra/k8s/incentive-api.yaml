@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: incentive-api
+  namespace: incentivepay
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: incentive-api }
+  template:
+    metadata:
+      labels: { app: incentive-api }
+    spec:
+      containers:
+        - name: incentive-api
+          image: incentivepay/incentive-api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef: { name: incentivepay-config }
+          env:
+            - { name: DB_URL, value: "jdbc:postgresql://postgres-incentive:5432/incentive_api" }
+            - name: DB_USER
+              valueFrom: { secretKeyRef: { name: incentivepay-secrets, key: DB_USER } }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: incentivepay-secrets, key: DB_PASSWORD } }
+            - name: HMAC_SECRET
+              valueFrom: { secretKeyRef: { name: incentivepay-secrets, key: HMAC_SECRET } }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8080 }
+            initialDelaySeconds: 20
+          livenessProbe:
+            httpGet: { path: /actuator/health, port: 8080 }
+            initialDelaySeconds: 40
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: incentive-api
+  namespace: incentivepay
+spec:
+  selector: { app: incentive-api }
+  ports:
+    - { port: 8080, targetPort: 8080 }

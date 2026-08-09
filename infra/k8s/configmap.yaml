@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: incentivepay-config
+  namespace: incentivepay
+data:
+  KAFKA_BOOTSTRAP_SERVERS: "redpanda:9092"
+  KEYCLOAK_JWK_SET_URI: "http://keycloak:8080/realms/incentivepay/protocol/openid-connect/certs"
+  AUTO_APPROVE_THRESHOLD: "500.00"

@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-yaml:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate docker-compose.yml
+        run: docker compose -f docker-compose.yml config -q
+
+      - name: Validate k8s manifests parse as YAML
+        run: |
+          for f in infra/k8s/*.yaml; do
+            python3 -c "import yaml,sys; list(yaml.safe_load_all(open(sys.argv[1])))" "$f"
+          done

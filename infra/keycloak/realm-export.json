@@ -1,0 +1,62 @@
+{
+  "realm": "incentivepay",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "accessTokenLifespan": 3600,
+  "roles": {
+    "realm": [
+      { "name": "incentive-admin", "description": "Manages incentive rules and participants" },
+      { "name": "approver", "description": "Approves or rejects pending disbursements" },
+      { "name": "finance-ops", "description": "Processes approved disbursements and views the ledger" },
+      { "name": "viewer", "description": "Read-only access" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "incentivepay-client",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["http://localhost:5173/*", "http://localhost:8080/*"],
+      "webOrigins": ["http://localhost:5173"]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin-demo",
+      "enabled": true,
+      "email": "admin-demo@incentivepay.local",
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "incentivepay-demo", "temporary": false }],
+      "realmRoles": ["incentive-admin"]
+    },
+    {
+      "username": "approver-demo",
+      "enabled": true,
+      "email": "approver-demo@incentivepay.local",
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "incentivepay-demo", "temporary": false }],
+      "realmRoles": ["approver"]
+    },
+    {
+      "username": "financeops-demo",
+      "enabled": true,
+      "email": "financeops-demo@incentivepay.local",
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "incentivepay-demo", "temporary": false }],
+      "realmRoles": ["finance-ops"]
+    },
+    {
+      "username": "viewer-demo",
+      "enabled": true,
+      "email": "viewer-demo@incentivepay.local",
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "incentivepay-demo", "temporary": false }],
+      "realmRoles": ["viewer"]
+    }
+  ]
+}
