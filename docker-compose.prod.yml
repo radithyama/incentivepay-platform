@@ -8,23 +8,31 @@
 #     never hardcoded here or committed; see .env.prod.example
 #   - KC_HOSTNAME / frontend build args point at PUBLIC_HOST (the domain or,
 #     before DNS is set up, the static IP) instead of localhost
+#
+# `ports:` entries below use the `!override` merge tag (Compose Spec 2.24+,
+# needs a reasonably recent `docker compose`) deliberately: Compose's default
+# merge behavior CONCATENATES list-type fields like `ports` across files
+# rather than replacing them. Without `!override`, the dev file's
+# "0.0.0.0:5432:5432" would still be applied alongside this file's
+# "127.0.0.1:5432:5432" - i.e. Postgres would stay open to the internet even
+# with this override in place. `!override` forces full replacement instead.
 
 version: "3.8"
 
 services:
   postgres-incentive:
     restart: unless-stopped
-    ports:
+    ports: !override
       - "127.0.0.1:5432:5432"
 
   postgres-ledger:
     restart: unless-stopped
-    ports:
+    ports: !override
       - "127.0.0.1:5433:5432"
 
   redpanda:
     restart: unless-stopped
-    ports:
+    ports: !override
       - "127.0.0.1:9092:9092"
 
   keycloak:
@@ -33,7 +41,10 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KC_HOSTNAME: ${PUBLIC_HOST}
       KC_HOSTNAME_PORT: ${KEYCLOAK_PUBLIC_PORT:-8081}
-      KC_PROXY: edge
+      # KC_PROXY=edge belongs here once a reverse proxy (Caddy) terminates TLS
+      # in front of Keycloak - not yet, while this is reachable directly over
+      # plain HTTP on the static IP. Setting it prematurely makes Keycloak
+      # assume HTTPS/forwarded headers that don't exist yet and breaks login.
 
   incentive-api:
     restart: unless-stopped
@@ -45,7 +56,7 @@ services:
 
   notification-service:
     restart: unless-stopped
-    ports:
+    ports: !override
       - "127.0.0.1:8083:8083"
 
   frontend:
