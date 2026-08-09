@@ -21,8 +21,8 @@
       "directAccessGrantsEnabled": true,
       "standardFlowEnabled": true,
       "serviceAccountsEnabled": false,
-      "redirectUris": ["http://localhost:5173/*", "http://localhost:8080/*"],
-      "webOrigins": ["http://localhost:5173"]
+      "redirectUris": ["http://localhost:5173/*", "http://localhost:8080/*", "https://incentivepay.radithyama.app/*"],
+      "webOrigins": ["http://localhost:5173", "https://incentivepay.radithyama.app"]
     }
   ],
   "users": [
@@ -31,6 +31,8 @@
       "enabled": true,
       "email": "admin-demo@incentivepay.local",
       "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "Demo",
       "credentials": [{ "type": "password", "value": "incentivepay-demo", "temporary": false }],
       "realmRoles": ["incentive-admin"]
     },
@@ -39,6 +41,8 @@
       "enabled": true,
       "email": "approver-demo@incentivepay.local",
       "emailVerified": true,
+      "firstName": "Approver",
+      "lastName": "Demo",
       "credentials": [{ "type": "password", "value": "incentivepay-demo", "temporary": false }],
       "realmRoles": ["approver"]
     },
@@ -47,6 +51,8 @@
       "enabled": true,
       "email": "financeops-demo@incentivepay.local",
       "emailVerified": true,
+      "firstName": "FinanceOps",
+      "lastName": "Demo",
       "credentials": [{ "type": "password", "value": "incentivepay-demo", "temporary": false }],
       "realmRoles": ["finance-ops"]
     },
@@ -55,6 +61,8 @@
       "enabled": true,
       "email": "viewer-demo@incentivepay.local",
       "emailVerified": true,
+      "firstName": "Viewer",
+      "lastName": "Demo",
       "credentials": [{ "type": "password", "value": "incentivepay-demo", "temporary": false }],
       "realmRoles": ["viewer"]
     }
