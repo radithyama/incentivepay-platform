@@ -8,10 +8,11 @@
   "displayNameHtml": "Incentive<span class=\"ip-brand-accent\">Pay</span>",
   "roles": {
     "realm": [
-      { "name": "incentive-admin", "description": "Manages incentive rules and participants" },
+      { "name": "incentive-admin", "description": "Manages incentive rules, participants, and event submission" },
       { "name": "approver", "description": "Approves or rejects pending disbursements" },
       { "name": "finance-ops", "description": "Processes approved disbursements and views the ledger" },
-      { "name": "viewer", "description": "Read-only access" }
+      { "name": "viewer", "description": "Read-only access" },
+      { "name": "user-admin", "description": "Approves new account requests and assigns roles - no access to rules, participants, or events" }
     ]
   },
   "clients": [
@@ -85,6 +86,16 @@
       "lastName": "Demo",
       "credentials": [{ "type": "password", "value": "incentivepay-demo", "temporary": false }],
       "realmRoles": ["viewer"]
+    },
+    {
+      "username": "useradmin-demo",
+      "enabled": true,
+      "email": "useradmin-demo@incentivepay.local",
+      "emailVerified": true,
+      "firstName": "UserAdmin",
+      "lastName": "Demo",
+      "credentials": [{ "type": "password", "value": "incentivepay-demo", "temporary": false }],
+      "realmRoles": ["user-admin"]
     }
   ]
 }

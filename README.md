@@ -9,15 +9,15 @@ be. Built against [`PRD-IncentivePay-Portfolio-App.md`](PRD-IncentivePay-Portfol
 piece for a Payment Platform / Incentive Platform engineering role.
 
 **Live:** [incentivepay.radithyama.app](https://incentivepay.radithyama.app) - log in as `approver-demo` /
-`incentivepay-demo` (or any of the four demo users, see "Keycloak setup" below), or request a new account from
-the login screen (an `incentive-admin` has to approve it before it works - see "Self-registration" below).
+`incentivepay-demo` (or any of the five demo users, see "Keycloak setup" below), or request a new account from
+the login screen (a `user-admin` has to approve it before it works - see "Self-registration" below).
 Deployed on Google Cloud Compute Engine (`e2-medium`) behind Caddy for automatic HTTPS, with a CD pipeline
 that redeploys on every push to `main`; see [`docker-compose.prod.yml`](docker-compose.prod.yml),
 [`deploy/`](deploy/), and "CD pipeline" below.
 
 **What it demonstrates, concretely:**
 - Rules-based business logic (Strategy pattern for FLAT/PERCENTAGE/TIERED calculation), not just CRUD
-- A real approval/authorization workflow with RBAC (four Keycloak roles behave differently, and it's tested)
+- A real approval/authorization workflow with RBAC (five Keycloak roles behave differently, and it's tested)
 - The security patterns a payment platform needs (OAuth2 + HMAC-signed mutations) applied to a disbursement
   engine instead of a payment simulator
 - The Spring Batch + audit-logging pattern from bulk-processing pipeline work, on a bulk incentive import
@@ -152,7 +152,7 @@ host-key checking.
 ## Keycloak setup
 
 The realm `incentivepay` is imported automatically from `infra/keycloak/realm-export.json` on first
-`docker-compose up`. It defines four realm roles and one demo user per role, all with password
+`docker-compose up`. It defines five realm roles and one demo user per role, all with password
 `incentivepay-demo`:
 
 | Username | Role | Can do |
@@ -161,6 +161,12 @@ The realm `incentivepay` is imported automatically from `infra/keycloak/realm-ex
 | `approver-demo` | `approver` | Approve/reject pending disbursements |
 | `financeops-demo` | `finance-ops` | View the ledger (read-only beyond that in this build) |
 | `viewer-demo` | `viewer` | Read-only everywhere |
+| `useradmin-demo` | `user-admin` | Approve new account requests, assign roles - nothing else |
+
+`user-admin` is split out from `incentive-admin` on purpose: the role that shapes payout rules and the role
+that grants system access are different concerns, and bundling them into one super-admin is the kind of
+separation-of-duties gap a real access review would flag. `incentive-admin` has zero access to
+`/v1/admin/**`; `user-admin` has zero access to rules, participants, events, or the ledger.
 
 The dashboard's login redirects to Keycloak's standard Authorization Code + PKCE flow - log in as whichever
 demo user you want to test as.
@@ -177,7 +183,7 @@ curl -s -X POST http://localhost:8081/realms/incentivepay/protocol/openid-connec
   | jq -r .access_token
 ```
 
-Swap `username` for any of the four demo users to test the other roles. The one test worth running by hand:
+Swap `username` for any of the five demo users to test the other roles. The one test worth running by hand:
 grab a `viewer-demo` token and `POST` to `/v1/disbursements/{id}/approve` - it should 403, not 200 (see
 `incentivepay-incentive-api`'s `DisbursementControllerAuthorizationTest` for the automated version).
 
@@ -195,7 +201,7 @@ CSS changed.
 
 New users don't get instant access. `POST /v1/auth/register` (no auth required) creates a Keycloak user that
 is **disabled and has no role** - just a `requestedRole` attribute recording what they asked for. Nothing
-happens until an `incentive-admin` reviews it on the **Pending approvals** tab and either approves (assigns a
+happens until a `user-admin` reviews it on the **Pending approvals** tab and either approves (assigns a
 role - not necessarily the one requested - and enables the account) or rejects (deletes it). This is backed
 by a dedicated Keycloak service account (`incentivepay-admin-service`, `incentive-api`'s
 `KeycloakAdminClient`) holding only the two `realm-management` client roles it actually needs
