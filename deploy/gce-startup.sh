@@ -46,10 +46,11 @@ done
 # --- .env.prod: written once from instance metadata, never committed ---
 # Metadata keys expected (see deploy note in the platform README): hmac-secret,
 # kc-admin-password, keycloak-public-host, vite-api-base-url,
-# vite-ledger-base-url, vite-keycloak-url, cors-allowed-origins. All required -
-# this fails loudly (curl returns 404 body, which becomes a broken .env.prod)
-# rather than silently deploying with blank/wrong URLs baked into the frontend
-# bundle or a CORS config that blocks the frontend from reaching the API.
+# vite-ledger-base-url, vite-keycloak-url, cors-allowed-origins,
+# keycloak-admin-client-secret. All required - this fails loudly (curl
+# returns 404 body, which becomes a broken .env.prod) rather than silently
+# deploying with blank/wrong URLs baked into the frontend bundle or a CORS
+# config that blocks the frontend from reaching the API.
 ENV_FILE="$APP_DIR/incentivepay-platform/.env.prod"
 if [ ! -f "$ENV_FILE" ]; then
   md() { curl -sf -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/attributes/$1"; }
@@ -62,6 +63,7 @@ VITE_API_BASE_URL=$(md vite-api-base-url)
 VITE_LEDGER_BASE_URL=$(md vite-ledger-base-url)
 VITE_KEYCLOAK_URL=$(md vite-keycloak-url)
 CORS_ALLOWED_ORIGINS=$(md cors-allowed-origins)
+KEYCLOAK_ADMIN_CLIENT_SECRET=$(md keycloak-admin-client-secret)
 ENVEOF
 fi
 
