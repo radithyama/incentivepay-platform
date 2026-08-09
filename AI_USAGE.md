@@ -98,6 +98,20 @@ Keycloak's `GET /admin/realms/{realm}/users` list endpoint silently omits custom
 requested role lives) unless you pass `briefRepresentation=false` - undocumented in the obvious place, found
 by comparing the single-user GET (which does return attributes) against the list endpoint's response.
 
+Fixed `briefRepresentation=false`, redeployed, retested with a fresh registration - and the requested role
+*still* came back `null`, even in the single-user GET this time. One more layer down: Keycloak 24+'s realm
+User Profile feature validates every attribute against a declared schema by default, and silently **drops**
+any attribute not in that schema rather than rejecting the request - so `requestedRole` was never actually
+being persisted at all, on any of the attempts up to this point, list-endpoint fix or not. Confirmed by
+`GET /admin/realms/{realm}/users/profile`, which showed no `unmanagedAttributePolicy` set (Keycloak's default
+is effectively "reject/drop unmanaged attributes"). Fixed with a `PUT` setting
+`"unmanagedAttributePolicy": "ENABLED"`, then verified with an actual fresh registration → approve → login
+cycle end to end, this time confirming the *pre-selected* role in the approval UI matched what was requested,
+not just that the flow didn't error. Three related-but-distinct Keycloak permission/config gaps in one
+feature, each one only visible by actually exercising the real flow rather than stopping at "the API call
+returned 2xx" - a good match for the PRD's original ask for one honest "AI got this wrong" story, except this
+one kept getting wrong in a new way each time the previous fix was verified.
+
 ## Mid-build pivot: monorepo to 5 repos
 
 **Prompt:** "push to git for each service and frontend, create their repo for every one of them. And put

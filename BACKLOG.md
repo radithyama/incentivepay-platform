@@ -91,6 +91,16 @@ user's request into `incentivepay-incentive-api`, `incentivepay-ledger-service`,
       the Admin API on this deployment; a fresh deployment elsewhere would need the same one-time fix
       (`AI_USAGE.md` has the full diagnosis). Worth a proper fix (a startup script step, or filing upstream)
       before this is relied on unattended.
+- [ ] **Second manual one-time step required on a fresh deployment**: the realm's User Profile config
+      defaults to stripping any attribute not explicitly declared in its schema (`unmanagedAttributePolicy`
+      unset = disabled) - so `requestedRole`, a custom attribute `KeycloakAdminClient` sets on new
+      registrations, silently never got saved. Fixed live via
+      `PUT /admin/realms/incentivepay/users/profile` with `"unmanagedAttributePolicy": "ENABLED"`. Not (yet)
+      encoded in `realm-export.json` - Keycloak represents User Profile config as a realm *component*
+      (`declarative-user-profile` provider), and hand-writing that structure correctly in the export JSON
+      wasn't worth the risk of getting subtly wrong; a fresh deployment needs this same one-time `PUT` before
+      the "requested role" ever shows up correctly in the approvals queue (the approve/reject flow itself
+      works fine either way - this only affects the role the admin panel pre-selects).
 
 ## Known cuts / simplifications (see README for the full explanation of each)
 
