@@ -16,6 +16,39 @@ multi-module repo, `com.incentivepay` as the group ID - and flagged them as it w
 each one. Docker-dependent steps (running `docker-compose up`, Testcontainers integration tests, the k6
 load test) were written but not executed, per the instruction.
 
+## Deployed to GCP Compute Engine - two bugs only visible with a real domain
+
+**Prompt:** "okay, so my domain is radithyama.app, and its configured at vercel domain, can you set it up on
+the gcp side?" (following an earlier request to deploy to Compute Engine).
+
+The stack was deployed to a Compute Engine VM behind Caddy (automatic HTTPS via Let's Encrypt) on
+`incentivepay.radithyama.app` and its subdomains, with DNS on Vercel. This was the first time the full stack
+had ever run against real infrastructure end-to-end - the entire build before this point had been unit/slice
+tests and `mvn`/`npm` builds only, since Docker wasn't installed in the original build environment (see
+"Initial scope" above). Two real bugs only surfaced once it was actually live:
+
+**1. Every demo login failed with "Account is not fully set up".** The realm-export.json's four demo users
+had no `firstName`/`lastName`. Keycloak 25 enables a `VERIFY_PROFILE` required action by default, which
+dynamically requires whatever fields the realm's User Profile config marks required - including for users
+where it was never explicitly assigned - and just... didn't tell you which field, in the direct-grant error
+response. Caught by fetching an admin token and diffing the realm's required-actions config against what the
+import actually set on a user, then checking Keycloak's own container logs for the structured
+`resolve_required_actions` event, which was more specific than the API error. Fixed live via the admin API on
+the running deployment, then fixed at the source (`realm-export.json`, duplicated across three repos) so the
+next fresh deployment doesn't hit it.
+
+**2. The real login redirect was silently rejected.** The Keycloak client's `redirectUris`/`webOrigins` only
+listed `localhost` - correct for local dev, but the production frontend redirects back to
+`https://incentivepay.radithyama.app/` after login, which Keycloak rejected as `invalid_redirect_uri`. This
+one is a good example of why "watch the actual server logs after deploying" matters even when nothing in the
+UI complains loudly: it was invisible from the frontend's perspective (the OAuth redirect just silently
+failed) and only showed up as a `LOGIN_ERROR` event in Keycloak's logs, from real outside traffic that had
+already found the domain via DNS before this fix landed.
+
+Both fixes shipped in the same commit, both were live-patched via the Keycloak admin API first (so the
+deployment wasn't broken while waiting on `git push` + a redeploy), then corrected at the source and pushed
+so a fresh `docker-compose up` elsewhere doesn't reintroduce either bug.
+
 ## Mid-build pivot: monorepo to 5 repos
 
 **Prompt:** "push to git for each service and frontend, create their repo for every one of them. And put
