@@ -115,6 +115,20 @@ user's request into `incentivepay-incentive-api`, `incentivepay-ledger-service`,
       restricted user genuinely can't run anything else (`sudo whoami`, argument injection, and an unlisted
       service name were all tested and correctly rejected)
 
+## CD pipeline gaps found in use
+
+- **No deploy lock across repos**: `deploy.sh` runs `docker compose up -d --build` against the whole
+  stack, not just the one changed service. Pushing to two or more repos within the same few seconds
+  (e.g. `incentive-api` and `frontend` together) triggers two concurrent GitHub Actions "Deploy to VM"
+  jobs on the same VM, and they race recreating shared containers - one job's `up` renames/recreates a
+  container out from under the other, which then fails with a Docker "Conflict: container name already
+  in use" error and a non-zero exit. Confirmed live (2026-08-09): both jobs still landed their actual
+  work correctly (new images built, containers swapped to the new build) since exactly one side of each
+  race won, but the failed CI run is misleading - it reads as "deploy broken" when the deploy actually
+  succeeded. Worth a proper fix (a lock file/mutex in `deploy.sh`, or scoping `up` to just the changed
+  service) before pushing to multiple repos back-to-back is trusted at face value from CI status alone;
+  until then, verify via `docker ps` / a live health check rather than the workflow's green check.
+
 ## Known cuts / simplifications (see README for the full explanation of each)
 
 - Frontend HMAC signing uses a build-time secret shipped to the browser - fine for a demo, not for
