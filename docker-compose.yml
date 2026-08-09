@@ -69,6 +69,7 @@ services:
     ports:
       - "8081:8080"
     volumes:
+      - keycloak-data:/opt/keycloak/data
       - ./infra/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
       - ./deploy/keycloak-theme/incentivepay:/opt/keycloak/themes/incentivepay:ro
 
@@ -141,3 +142,4 @@ services:
 volumes:
   postgres-incentive-data:
   postgres-ledger-data:
+  keycloak-data:
