@@ -20,3 +20,21 @@ jobs:
           for f in infra/k8s/*.yaml; do
             python3 -c "import yaml,sys; list(yaml.safe_load_all(open(sys.argv[1])))" "$f"
           done
+
+  deploy:
+    needs: validate-yaml
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to VM
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          VM_HOST: ${{ secrets.DEPLOY_VM_HOST }}
+          VM_HOST_KEY: ${{ secrets.DEPLOY_VM_HOST_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          echo "$VM_HOST_KEY" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy_key deploy@"$VM_HOST" \
+            "sudo /opt/incentivepay/incentivepay-platform/deploy/deploy.sh platform"
