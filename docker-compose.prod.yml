@@ -1,0 +1,58 @@
+# Production overlay: `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`
+#
+# Differences from the dev compose file:
+#   - restart: unless-stopped on every service (survives crashes/reboots)
+#   - Postgres/Redpanda/notification-service ports bound to 127.0.0.1 only -
+#     nothing but this host's own reverse proxy needs to reach them
+#   - Real secrets via env vars (HMAC_SECRET, KEYCLOAK_ADMIN_PASSWORD) -
+#     never hardcoded here or committed; see .env.prod.example
+#   - KC_HOSTNAME / frontend build args point at PUBLIC_HOST (the domain or,
+#     before DNS is set up, the static IP) instead of localhost
+
+version: "3.8"
+
+services:
+  postgres-incentive:
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  postgres-ledger:
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5433:5432"
+
+  redpanda:
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9092:9092"
+
+  keycloak:
+    restart: unless-stopped
+    environment:
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HOSTNAME: ${PUBLIC_HOST}
+      KC_HOSTNAME_PORT: ${KEYCLOAK_PUBLIC_PORT:-8081}
+      KC_PROXY: edge
+
+  incentive-api:
+    restart: unless-stopped
+    environment:
+      HMAC_SECRET: ${HMAC_SECRET}
+
+  ledger-service:
+    restart: unless-stopped
+
+  notification-service:
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8083:8083"
+
+  frontend:
+    restart: unless-stopped
+    build:
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_LEDGER_BASE_URL: ${VITE_LEDGER_BASE_URL}
+        VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL}
+        VITE_HMAC_SECRET: ${HMAC_SECRET}
