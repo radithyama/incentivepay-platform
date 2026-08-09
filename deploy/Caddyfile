@@ -1,0 +1,19 @@
+incentivepay.radithyama.app {
+	reverse_proxy frontend:80
+}
+
+www.incentivepay.radithyama.app {
+	redir https://incentivepay.radithyama.app{uri} permanent
+}
+
+api.incentivepay.radithyama.app {
+	reverse_proxy incentive-api:8080
+}
+
+ledger.incentivepay.radithyama.app {
+	reverse_proxy ledger-service:8082
+}
+
+auth.incentivepay.radithyama.app {
+	reverse_proxy keycloak:8080
+}

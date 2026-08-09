@@ -2,12 +2,15 @@
 #
 # Differences from the dev compose file:
 #   - restart: unless-stopped on every service (survives crashes/reboots)
-#   - Postgres/Redpanda/notification-service ports bound to 127.0.0.1 only -
-#     nothing but this host's own reverse proxy needs to reach them
+#   - Caddy in front on 80/443, automatic HTTPS (Let's Encrypt) per hostname
+#     in deploy/Caddyfile - the only ports actually open to the internet
+#   - Every app service's own port is rebound to 127.0.0.1 (reachable for
+#     SSH-session debugging, not from the internet) - Caddy reaches them over
+#     the internal Docker network by service name, not via published ports
+#   - Postgres/Redpanda/notification-service ports bound to 127.0.0.1 only
 #   - Real secrets via env vars (HMAC_SECRET, KEYCLOAK_ADMIN_PASSWORD) -
 #     never hardcoded here or committed; see .env.prod.example
-#   - KC_HOSTNAME / frontend build args point at PUBLIC_HOST (the domain or,
-#     before DNS is set up, the static IP) instead of localhost
+#   - KC_HOSTNAME / frontend build args point at the real HTTPS subdomains
 #
 # `ports:` entries below use the `!override` merge tag (Compose Spec 2.24+,
 # needs a reasonably recent `docker compose`) deliberately: Compose's default
@@ -39,20 +42,22 @@ services:
     restart: unless-stopped
     environment:
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-      KC_HOSTNAME: ${PUBLIC_HOST}
-      KC_HOSTNAME_PORT: ${KEYCLOAK_PUBLIC_PORT:-8081}
-      # KC_PROXY=edge belongs here once a reverse proxy (Caddy) terminates TLS
-      # in front of Keycloak - not yet, while this is reachable directly over
-      # plain HTTP on the static IP. Setting it prematurely makes Keycloak
-      # assume HTTPS/forwarded headers that don't exist yet and breaks login.
+      KC_HOSTNAME: ${KEYCLOAK_PUBLIC_HOST}
+      KC_PROXY: edge
+    ports: !override
+      - "127.0.0.1:8081:8080"
 
   incentive-api:
     restart: unless-stopped
     environment:
       HMAC_SECRET: ${HMAC_SECRET}
+    ports: !override
+      - "127.0.0.1:8080:8080"
 
   ledger-service:
     restart: unless-stopped
+    ports: !override
+      - "127.0.0.1:8082:8082"
 
   notification-service:
     restart: unless-stopped
@@ -67,3 +72,25 @@ services:
         VITE_LEDGER_BASE_URL: ${VITE_LEDGER_BASE_URL}
         VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL}
         VITE_HMAC_SECRET: ${HMAC_SECRET}
+    ports: !override
+      - "127.0.0.1:5173:80"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - frontend
+      - incentive-api
+      - ledger-service
+      - keycloak
+
+volumes:
+  caddy-data:
+  caddy-config:

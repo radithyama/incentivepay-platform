@@ -44,21 +44,22 @@ for repo in "${REPOS[@]}"; do
 done
 
 # --- .env.prod: written once from instance metadata, never committed ---
+# Metadata keys expected (see deploy note in the platform README): hmac-secret,
+# kc-admin-password, keycloak-public-host, vite-api-base-url,
+# vite-ledger-base-url, vite-keycloak-url. All required - this fails loudly
+# (curl returns 404 body, which becomes a broken .env.prod) rather than
+# silently deploying with blank/wrong URLs baked into the frontend bundle.
 ENV_FILE="$APP_DIR/incentivepay-platform/.env.prod"
 if [ ! -f "$ENV_FILE" ]; then
-  PUBLIC_HOST=$(curl -s -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/attributes/public-host")
-  HMAC_SECRET=$(curl -s -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/attributes/hmac-secret")
-  KC_ADMIN_PASSWORD=$(curl -s -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/attributes/kc-admin-password")
-  APP_SCHEME=$(curl -s -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/attributes/app-scheme")
+  md() { curl -sf -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/attributes/$1"; }
 
   cat > "$ENV_FILE" <<ENVEOF
-PUBLIC_HOST=${PUBLIC_HOST}
-KEYCLOAK_PUBLIC_PORT=8081
-VITE_API_BASE_URL=${APP_SCHEME}://${PUBLIC_HOST}:8080
-VITE_LEDGER_BASE_URL=${APP_SCHEME}://${PUBLIC_HOST}:8082
-VITE_KEYCLOAK_URL=${APP_SCHEME}://${PUBLIC_HOST}:8081
-HMAC_SECRET=${HMAC_SECRET}
-KEYCLOAK_ADMIN_PASSWORD=${KC_ADMIN_PASSWORD}
+HMAC_SECRET=$(md hmac-secret)
+KEYCLOAK_ADMIN_PASSWORD=$(md kc-admin-password)
+KEYCLOAK_PUBLIC_HOST=$(md keycloak-public-host)
+VITE_API_BASE_URL=$(md vite-api-base-url)
+VITE_LEDGER_BASE_URL=$(md vite-ledger-base-url)
+VITE_KEYCLOAK_URL=$(md vite-keycloak-url)
 ENVEOF
 fi
 
