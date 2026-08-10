@@ -23,10 +23,21 @@ git -C "$APP_DIR/$REPO" pull --ff-only
 
 cd "$PLATFORM_DIR"
 if [ "$SERVICE" = "platform" ]; then
-  # Shared config changed - bring the whole stack in line with it. Compose
-  # only recreates containers whose actual config changed, so this is safe
-  # to run even when only one service's image needs rebuilding.
+  # Shared config changed - bring the whole stack in line with it.
   docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d --build
+  # Compose only recreates a container when it detects the resolved service
+  # config (image, env, the volume *list*) changed - it has no way to know
+  # that a bind-mounted file's *contents* changed on disk, since from
+  # Compose's point of view the mount itself is identical. caddy and
+  # keycloak are both configured almost entirely through bind-mounted files
+  # (Caddyfile; the login theme and, on a fresh volume, realm-export.json),
+  # so an `up -d` after a config-only edit silently leaves them running the
+  # OLD file - confirmed live: a Caddyfile change sat inert for 19+ hours
+  # across several deploys until an explicit --force-recreate. Both are
+  # cheap/safe to force-recreate every "platform" deploy (Caddy: brief
+  # connection blip, no cert reissuance; Keycloak: existing sessions/data
+  # persist in Postgres, this is not the fresh-import path).
+  docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d --force-recreate caddy keycloak
 else
   docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d --build "$SERVICE"
 fi

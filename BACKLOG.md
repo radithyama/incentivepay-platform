@@ -128,6 +128,20 @@ user's request into `incentivepay-incentive-api`, `incentivepay-ledger-service`,
   succeeded. Worth a proper fix (a lock file/mutex in `deploy.sh`, or scoping `up` to just the changed
   service) before pushing to multiple repos back-to-back is trusted at face value from CI status alone;
   until then, verify via `docker ps` / a live health check rather than the workflow's green check.
+- **Bind-mounted config changes didn't reach the running containers**: `caddy` and `keycloak` are
+  configured almost entirely via bind-mounted files (`Caddyfile`; the login theme and, on a fresh volume,
+  `realm-export.json`), not environment variables or image contents. `docker compose up -d` only recreates
+  a container when it detects the *resolved service definition* changed (image, env, the volume list) -
+  it has no visibility into a bind-mounted file's *contents* changing on disk, so a config-only edit
+  (e.g. adding security headers to the `Caddyfile`) silently kept the old file loaded in the already-running
+  container. Confirmed live (2026-08-10): the `caddy` container was 19+ hours old and had never picked up
+  several Caddyfile edits made across that window, despite each one going through a normal `platform`
+  deploy and even an explicit `caddy reload` (which reloads Caddy's *already-mounted*, still-stale file -
+  it can't discover a change it was never told about). Fixed by having the `platform` deploy path always
+  `--force-recreate caddy keycloak` after `up -d --build`, so bind-mounted config is guaranteed fresh every
+  time regardless of whether Compose thinks anything else changed. The general lesson: verify config-only
+  infra changes by checking the *running container's* view of the file (`docker exec <c> cat <path>` or a
+  live header/response check), not just "the deploy job succeeded" or "the host file has the new content."
 
 ## Known cuts / simplifications (see README for the full explanation of each)
 
